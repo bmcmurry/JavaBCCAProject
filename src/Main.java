@@ -67,6 +67,7 @@ public class Main {
         }
     }
 
+    //here's a test for pushing
     private static String getStockSymbolFromDatabase(String companyName) {
         String stockSymbol = null;
 
