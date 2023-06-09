@@ -1,12 +1,13 @@
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import org.apache.commons.text.WordUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.sql.*;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -14,8 +15,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
-
 public class Main {
+    public static void apiCall(HttpURLConnection conn) {
+    }
 
     public static class StockData {
         private LocalDate date;
@@ -42,13 +44,17 @@ public class Main {
     }
 
     private static final String API_KEY = "ZHF986AD1CJJSSAP";
+    private static final String DB_URL = "jdbc:postgresql://localhost:5432/postgres";
+    private static final String DB_USER = "postgres";
+    private static final String DB_PASSWORD = "password";
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Enter a company name: ");
         String companyName = scanner.nextLine();
 
-        String stockSymbol = getStockSymbol(companyName);
+        companyName = WordUtils.capitalizeFully(companyName);
+        String stockSymbol = getStockSymbolFromDatabase(companyName);
         if (stockSymbol != null) {
             String stockData = getStockData(stockSymbol);
             if (stockData != null) {
@@ -57,44 +63,27 @@ public class Main {
                 System.out.println("Failed to fetch stock data for " + stockSymbol);
             }
         } else {
-            System.out.println("Stock symbol not found for " + companyName);
+            System.out.println("Invalid company name: " + companyName);
         }
     }
 
-    private static String getStockSymbol(String companyName) {
+    private static String getStockSymbolFromDatabase(String companyName) {
         String stockSymbol = null;
 
         try {
-            String apiUrl = "https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=" +
-                    companyName + "&apikey=" + API_KEY;
+            Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+            PreparedStatement statement = connection.prepareStatement("SELECT symbol FROM listing_status WHERE name = ?");
+            statement.setString(1, companyName);
 
-            URL url = new URL(apiUrl);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("GET");
-
-            int responseCode = connection.getResponseCode();
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                StringBuilder response = new StringBuilder();
-                String line;
-
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
-
-                reader.close();
-                JsonParser parser = new JsonParser();
-                JsonObject json = parser.parse(response.toString()).getAsJsonObject();
-
-                JsonArray resultArray = json.getAsJsonArray("bestMatches");
-                if (resultArray.size() > 0) {
-                    JsonObject companyObject = resultArray.get(0).getAsJsonObject();
-                    stockSymbol = companyObject.get("1. symbol").getAsString();
-                }
-            } else {
-                System.out.println("Error: " + responseCode);
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                stockSymbol = resultSet.getString("symbol");
             }
-        } catch (IOException e) {
+
+            resultSet.close();
+            statement.close();
+            connection.close();
+        } catch (SQLException e) {
             e.printStackTrace();
         }
 
@@ -133,6 +122,7 @@ public class Main {
 
         return stockData;
     }
+
 
     private static void processStockData(String stockData) {
         JsonParser parser = new JsonParser();
@@ -189,10 +179,10 @@ public class Main {
             }
 
             boolean isUpThisWeek = isStockUp(closingPrices);
-            boolean isUpLastWeek = closingPrices.size() >= 2 ? isStockUp(getSubList(closingPrices, 2)) : false;
-            boolean isUpLast3Months = closingPrices.size() >= 14 ? isStockUp(getSubList(closingPrices, 14)) : false;
-            boolean isUpLast6Months = closingPrices.size() >= 27 ? isStockUp(getSubList(closingPrices, 27)) : false;
-            boolean isUpLastYear = closingPrices.size() >= 54 ? isStockUp(getSubList(closingPrices, 54)) : false;
+            boolean isUpLastWeek = closingPrices.size() >= 2 && isStockUp(getSubList(closingPrices, 2));
+            boolean isUpLast3Months = closingPrices.size() >= 14 && isStockUp(getSubList(closingPrices, 14));
+            boolean isUpLast6Months = closingPrices.size() >= 27 && isStockUp(getSubList(closingPrices, 27));
+            boolean isUpLastYear = closingPrices.size() >= 54 && isStockUp(getSubList(closingPrices, 54));
 
             LocalDate lastWeekEndDate = currentWeekStart.minusDays(1); // Get the end date of the previous week
 

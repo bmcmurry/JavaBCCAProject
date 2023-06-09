@@ -3,7 +3,7 @@
   <database-model serializer="dbm" dbms="POSTGRES" family-id="POSTGRES" format-version="4.48">
     <root id="1">
       <DateStyle>mdy</DateStyle>
-      <IntrospectionStateNumber>755</IntrospectionStateNumber>
+      <IntrospectionStateNumber>789</IntrospectionStateNumber>
       <ServerVersion>15.3</ServerVersion>
       <StartupTime>1686097338</StartupTime>
       <TimeZones>true ACDT
@@ -802,7 +802,7 @@ false Zulu
 13183||10|C|G
 13183||-9223372036854775808|U|G
 13183||10|U|G</Grants>
-      <IntrospectionStateNumber>755</IntrospectionStateNumber>
+      <IntrospectionStateNumber>789</IntrospectionStateNumber>
       <ObjectId>5</ObjectId>
       <OwnerName>postgres</OwnerName>
     </database>
@@ -4229,7 +4229,7 @@ false Zulu
     <schema id="262" parent="2" name="public">
       <Comment>standard public schema</Comment>
       <Current>1</Current>
-      <IntrospectionStateNumber>755</IntrospectionStateNumber>
+      <IntrospectionStateNumber>789</IntrospectionStateNumber>
       <ObjectId>2200</ObjectId>
       <StateNumber>518</StateNumber>
       <OwnerName>pg_database_owner</OwnerName>
@@ -4240,46 +4240,46 @@ false Zulu
       <AccessMethodId>2</AccessMethodId>
       <OwnerName>postgres</OwnerName>
     </table>
-    <column id="264" parent="263" name="c1">
+    <column id="264" parent="263" name="symbol">
       <DasType>text|0s</DasType>
       <Position>1</Position>
-      <StateNumber>747</StateNumber>
+      <StateNumber>758</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="265" parent="263" name="c2">
+    <column id="265" parent="263" name="name">
       <DasType>text|0s</DasType>
       <Position>2</Position>
-      <StateNumber>747</StateNumber>
+      <StateNumber>761</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="266" parent="263" name="c3">
+    <column id="266" parent="263" name="exchange">
       <DasType>text|0s</DasType>
       <Position>3</Position>
-      <StateNumber>747</StateNumber>
+      <StateNumber>776</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="267" parent="263" name="c4">
+    <column id="267" parent="263" name="assetType">
       <DasType>text|0s</DasType>
       <Position>4</Position>
-      <StateNumber>747</StateNumber>
+      <StateNumber>767</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="268" parent="263" name="c5">
+    <column id="268" parent="263" name="ipoDate">
       <DasType>text|0s</DasType>
       <Position>5</Position>
-      <StateNumber>747</StateNumber>
+      <StateNumber>782</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="269" parent="263" name="c6">
+    <column id="269" parent="263" name="delistingDate">
       <DasType>text|0s</DasType>
       <Position>6</Position>
-      <StateNumber>747</StateNumber>
+      <StateNumber>779</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="270" parent="263" name="c7">
+    <column id="270" parent="263" name="status">
       <DasType>text|0s</DasType>
       <Position>7</Position>
-      <StateNumber>747</StateNumber>
+      <StateNumber>788</StateNumber>
       <TypeId>25</TypeId>
     </column>
   </database-model>
