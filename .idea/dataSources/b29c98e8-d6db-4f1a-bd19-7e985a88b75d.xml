@@ -3,7 +3,7 @@
   <database-model serializer="dbm" dbms="POSTGRES" family-id="POSTGRES" format-version="4.48">
     <root id="1">
       <DateStyle>mdy</DateStyle>
-      <IntrospectionStateNumber>789</IntrospectionStateNumber>
+      <IntrospectionStateNumber>813</IntrospectionStateNumber>
       <ServerVersion>15.3</ServerVersion>
       <StartupTime>1686097338</StartupTime>
       <TimeZones>true ACDT
@@ -802,7 +802,7 @@ false Zulu
 13183||10|C|G
 13183||-9223372036854775808|U|G
 13183||10|U|G</Grants>
-      <IntrospectionStateNumber>789</IntrospectionStateNumber>
+      <IntrospectionStateNumber>813</IntrospectionStateNumber>
       <ObjectId>5</ObjectId>
       <OwnerName>postgres</OwnerName>
     </database>
@@ -4229,58 +4229,242 @@ false Zulu
     <schema id="262" parent="2" name="public">
       <Comment>standard public schema</Comment>
       <Current>1</Current>
-      <IntrospectionStateNumber>789</IntrospectionStateNumber>
+      <IntrospectionStateNumber>813</IntrospectionStateNumber>
       <ObjectId>2200</ObjectId>
       <StateNumber>518</StateNumber>
       <OwnerName>pg_database_owner</OwnerName>
     </schema>
-    <table id="263" parent="262" name="listing_status">
+    <sequence id="263" parent="262" name="users_user_id_seq">
+      <DasType>integer|0s</DasType>
+      <ObjectId>16423</ObjectId>
+      <SequenceIdentity>1(1)</SequenceIdentity>
+      <StartValue>1</StartValue>
+      <StateNumber>801</StateNumber>
+      <OwnerName>postgres</OwnerName>
+    </sequence>
+    <sequence id="264" parent="262" name="watchlist_watchlist_id_seq">
+      <DasType>integer|0s</DasType>
+      <ObjectId>16430</ObjectId>
+      <SequenceIdentity>1(1)</SequenceIdentity>
+      <StartValue>1</StartValue>
+      <StateNumber>806</StateNumber>
+      <OwnerName>postgres</OwnerName>
+    </sequence>
+    <table id="265" parent="262" name="listing_status">
       <ObjectId>16408</ObjectId>
-      <StateNumber>747</StateNumber>
+      <StateNumber>806</StateNumber>
       <AccessMethodId>2</AccessMethodId>
       <OwnerName>postgres</OwnerName>
     </table>
-    <column id="264" parent="263" name="symbol">
+    <table id="266" parent="262" name="users">
+      <ObjectId>16424</ObjectId>
+      <StateNumber>812</StateNumber>
+      <AccessMethodId>2</AccessMethodId>
+      <OwnerName>postgres</OwnerName>
+    </table>
+    <table id="267" parent="262" name="watchlist">
+      <ObjectId>16431</ObjectId>
+      <StateNumber>806</StateNumber>
+      <AccessMethodId>2</AccessMethodId>
+      <OwnerName>postgres</OwnerName>
+    </table>
+    <column id="268" parent="265" name="symbol">
       <DasType>text|0s</DasType>
+      <NotNull>1</NotNull>
       <Position>1</Position>
-      <StateNumber>758</StateNumber>
+      <StateNumber>798</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="265" parent="263" name="name">
+    <column id="269" parent="265" name="name">
       <DasType>text|0s</DasType>
       <Position>2</Position>
       <StateNumber>761</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="266" parent="263" name="exchange">
+    <column id="270" parent="265" name="exchange">
       <DasType>text|0s</DasType>
       <Position>3</Position>
       <StateNumber>776</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="267" parent="263" name="assetType">
+    <column id="271" parent="265" name="assetType">
       <DasType>text|0s</DasType>
       <Position>4</Position>
       <StateNumber>767</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="268" parent="263" name="ipoDate">
+    <column id="272" parent="265" name="ipoDate">
       <DasType>text|0s</DasType>
       <Position>5</Position>
       <StateNumber>782</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="269" parent="263" name="delistingDate">
+    <column id="273" parent="265" name="delistingDate">
       <DasType>text|0s</DasType>
       <Position>6</Position>
       <StateNumber>779</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="270" parent="263" name="status">
+    <column id="274" parent="265" name="status">
       <DasType>text|0s</DasType>
       <Position>7</Position>
       <StateNumber>788</StateNumber>
       <TypeId>25</TypeId>
     </column>
+    <index id="275" parent="265" name="listing_status_pk">
+      <ColNames>symbol</ColNames>
+      <ObjectId>16421</ObjectId>
+      <Primary>1</Primary>
+      <StateNumber>798</StateNumber>
+      <Unique>1</Unique>
+      <AccessMethodId>403</AccessMethodId>
+      <CollationNames>default</CollationNames>
+      <CollationIds>100</CollationIds>
+      <CollationParentNames>pg_catalog</CollationParentNames>
+    </index>
+    <key id="276" parent="265" name="listing_status_pk">
+      <ObjectId>16422</ObjectId>
+      <Primary>1</Primary>
+      <StateNumber>798</StateNumber>
+      <UnderlyingIndexId>16421</UnderlyingIndexId>
+    </key>
+    <column id="277" parent="266" name="user_id">
+      <DasType>integer|0s</DasType>
+      <DefaultExpression>nextval(&apos;users_user_id_seq&apos;::regclass)</DefaultExpression>
+      <NotNull>1</NotNull>
+      <Position>1</Position>
+      <StateNumber>801</StateNumber>
+      <SequenceId>16423</SequenceId>
+      <TypeId>23</TypeId>
+    </column>
+    <column id="278" parent="266" name="user_name">
+      <DasType>varchar(255)|0s</DasType>
+      <Position>2</Position>
+      <StateNumber>809</StateNumber>
+      <TypeId>1043</TypeId>
+    </column>
+    <column id="279" parent="266" name="date_created">
+      <DasType>date|0s</DasType>
+      <Position>3</Position>
+      <StateNumber>801</StateNumber>
+      <TypeId>1082</TypeId>
+    </column>
+    <column id="280" parent="266" name="password">
+      <DasType>varchar(12)|0s</DasType>
+      <Position>4</Position>
+      <StateNumber>812</StateNumber>
+      <TypeId>1043</TypeId>
+    </column>
+    <index id="281" parent="266" name="users_pkey">
+      <ColNames>user_id</ColNames>
+      <NameSurrogate>1</NameSurrogate>
+      <ObjectId>16428</ObjectId>
+      <Primary>1</Primary>
+      <StateNumber>801</StateNumber>
+      <Unique>1</Unique>
+      <AccessMethodId>403</AccessMethodId>
+    </index>
+    <key id="282" parent="266" name="users_pkey">
+      <NameSurrogate>1</NameSurrogate>
+      <ObjectId>16429</ObjectId>
+      <Primary>1</Primary>
+      <StateNumber>801</StateNumber>
+      <UnderlyingIndexId>16428</UnderlyingIndexId>
+    </key>
+    <column id="283" parent="267" name="watchlist_id">
+      <DasType>integer|0s</DasType>
+      <DefaultExpression>nextval(&apos;watchlist_watchlist_id_seq&apos;::regclass)</DefaultExpression>
+      <NotNull>1</NotNull>
+      <Position>1</Position>
+      <StateNumber>806</StateNumber>
+      <SequenceId>16430</SequenceId>
+      <TypeId>23</TypeId>
+    </column>
+    <column id="284" parent="267" name="user_id">
+      <DasType>integer|0s</DasType>
+      <Position>2</Position>
+      <StateNumber>806</StateNumber>
+      <TypeId>23</TypeId>
+    </column>
+    <column id="285" parent="267" name="stock_symbol">
+      <DasType>varchar(10)|0s</DasType>
+      <Position>3</Position>
+      <StateNumber>806</StateNumber>
+      <TypeId>1043</TypeId>
+    </column>
+    <column id="286" parent="267" name="stock_name">
+      <DasType>varchar(255)|0s</DasType>
+      <Position>4</Position>
+      <StateNumber>806</StateNumber>
+      <TypeId>1043</TypeId>
+    </column>
+    <column id="287" parent="267" name="last_close">
+      <DasType>numeric(10,2 digit)|0s</DasType>
+      <Position>5</Position>
+      <StateNumber>806</StateNumber>
+      <TypeId>1700</TypeId>
+    </column>
+    <column id="288" parent="267" name="most_recent_close_date">
+      <DasType>date|0s</DasType>
+      <Position>6</Position>
+      <StateNumber>806</StateNumber>
+      <TypeId>1082</TypeId>
+    </column>
+    <column id="289" parent="267" name="date_added_to_watchlist">
+      <DasType>date|0s</DasType>
+      <Position>7</Position>
+      <StateNumber>806</StateNumber>
+      <TypeId>1082</TypeId>
+    </column>
+    <column id="290" parent="267" name="initial_price">
+      <DasType>numeric(10,2 digit)|0s</DasType>
+      <Position>8</Position>
+      <StateNumber>806</StateNumber>
+      <TypeId>1700</TypeId>
+    </column>
+    <column id="291" parent="267" name="gain_loss">
+      <DasType>numeric(5,2 digit)|0s</DasType>
+      <Position>9</Position>
+      <StateNumber>806</StateNumber>
+      <TypeId>1700</TypeId>
+    </column>
+    <foreign-key id="292" parent="267" name="watchlist_user_id_fkey">
+      <ColNames>user_id</ColNames>
+      <NameSurrogate>1</NameSurrogate>
+      <ObjectId>16437</ObjectId>
+      <RefColNames>user_id</RefColNames>
+      <RefColPositions>1</RefColPositions>
+      <StateNumber>806</StateNumber>
+      <RefTableId>16424</RefTableId>
+      <RefTableName>users</RefTableName>
+      <RefTableKind>table</RefTableKind>
+    </foreign-key>
+    <foreign-key id="293" parent="267" name="watchlist_stock_symbol_fkey">
+      <ColNames>stock_symbol</ColNames>
+      <NameSurrogate>1</NameSurrogate>
+      <ObjectId>16442</ObjectId>
+      <RefColNames>symbol</RefColNames>
+      <RefColPositions>1</RefColPositions>
+      <StateNumber>806</StateNumber>
+      <RefTableId>16408</RefTableId>
+      <RefTableName>listing_status</RefTableName>
+      <RefTableKind>table</RefTableKind>
+    </foreign-key>
+    <index id="294" parent="267" name="watchlist_pkey">
+      <ColNames>watchlist_id</ColNames>
+      <NameSurrogate>1</NameSurrogate>
+      <ObjectId>16435</ObjectId>
+      <Primary>1</Primary>
+      <StateNumber>806</StateNumber>
+      <Unique>1</Unique>
+      <AccessMethodId>403</AccessMethodId>
+    </index>
+    <key id="295" parent="267" name="watchlist_pkey">
+      <NameSurrogate>1</NameSurrogate>
+      <ObjectId>16436</ObjectId>
+      <Primary>1</Primary>
+      <StateNumber>806</StateNumber>
+      <UnderlyingIndexId>16435</UnderlyingIndexId>
+    </key>
   </database-model>
 </dataSource>
