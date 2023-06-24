@@ -1,506 +1,558 @@
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.sql.*;
-import java.text.DecimalFormat;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 public class Main {
-    public static void apiCall(HttpURLConnection conn) {
-    }
+    private static StockLookup stockLookup = new StockLookup();
 
-    public static class StockData {
-        private LocalDate date;
-        private double average;
-        private double close;
+    private static String loggedInUser = null;
 
-        public StockData(LocalDate date, double average, double close) {
-            this.date = date;
-            this.average = average;
-            this.close = close;
-        }
-
-        public LocalDate getDate() {
-            return date;
-        }
-
-        public double getAverage() {
-            return average;
-        }
-
-        public double getClose() {
-            return close;
-        }
-    }
+    private static final String DATABASE_URL = "jdbc:postgresql://localhost:5432/postgres";
+    private static final String USERNAME = "postgres";
+    private static final String PASSWORD = "password";
     private static final String API_KEY = "ZHF986AD1CJJSSAP";
-    private static final String DB_URL = "jdbc:postgresql://localhost:5432/postgres";
-    private static final String DB_USER = "postgres";
-    private static final String DB_PASSWORD = "password";
-    private static final Scanner scanner = new Scanner(System.in);
 
     public static void main(String[] args) {
-        boolean loggedIn = login();
-        if (loggedIn) {
-            boolean quit = false;
-            while (!quit) {
-                System.out.println("What would you like to do?");
-                System.out.println("[search] a stock's price");
-                System.out.println("[watchlist] view your watchlist");
-                System.out.println("[edit] your watchlist");
-                System.out.println("[quit]");
+        try {
+            Scanner scanner = new Scanner(System.in);
+            System.out.println("Welcome to the Stock Watchlist Program!");
+            boolean programRunning = true;
+            while (programRunning) {
+                try {
 
-                String input = scanner.nextLine().trim().toLowerCase();
-                switch (input) {
-                    case "search":
-                        searchStockPrice();
+                    System.out.println("Please select the number of the option you wish to choose:");
+                    System.out.println("1. Login");
+                    System.out.println("2. Create an account");
+                    System.out.println("3. Quit the program");
+
+                    System.out.print("Option: ");
+                    String option = "";
+                    if (scanner.hasNextLine()) {
+                        option = scanner.nextLine();
+                    } else {
                         break;
-                    case "watchlist":
-                        viewWatchlist();
+                    }
+
+                    switch (option) {
+                        case "1":
+                            System.out.print("Enter user name: ");
+                            String userName = scanner.nextLine();
+                            System.out.print("Enter password: ");
+                            String password = scanner.nextLine();
+
+                            boolean loginSuccessful = login(userName, password);
+                            if (loginSuccessful) {
+                                editWatchlist();
+                            } else {
+                                System.out.println("Login failed. Invalid credentials.");
+                            }
+                            break;
+                        case "2":
+                            System.out.print("Enter user name: ");
+                            String newUserName = scanner.nextLine();
+                            System.out.print("Enter password: ");
+                            String newPassword = scanner.nextLine();
+
+                            boolean accountCreated = createUser(newUserName, newPassword);
+                            if (accountCreated) {
+                                System.out.println("Account created successfully. Please log in.");
+                            } else {
+                                System.out.println("Failed to create account. Please try again.");
+                            }
+                            break;
+                        case "3":
+                            System.out.println("Exiting program...");
+                            programRunning = false;
+                            break;
+                        default:
+                            System.out.println("Invalid option. Please try again.");
+                            break;
+                    }
+                } catch (NoSuchElementException e) {
+                    System.out.println("No input found. Please try again.");
+                    if (scanner.hasNextLine()) {
+                        scanner.nextLine(); // Consume the newline character
+                    } else {
                         break;
-                    case "edit":
-                        editWatchlist();
-                        break;
-                    case "quit":
-                        quit = true;
-                        break;
-                    default:
-                        System.out.println("Invalid command.");
+                    }
                 }
             }
-        } else {
-            System.out.println("Login failed. Exiting the program.");
+
+            scanner.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    private static boolean login() {
-        System.out.println("Welcome!");
 
-        // Ask the user if they want to create a new user or login
-        System.out.println("Do you want to [create] a new user or [login] to an existing user?");
-        String choice = scanner.nextLine().trim().toLowerCase();
 
-        if (choice.equals("create")) {
-            createUser();
-            return true;
-        } else if (choice.equals("login")) {
-            System.out.print("Username: ");
-            String user_name = scanner.nextLine();
-
-            System.out.print("Password: ");
-            String password = scanner.nextLine();
-            return authenticateUser(user_name, password);
-        } else {
-            System.out.println("Invalid choice.");
+    private static boolean createUser(String userName, String password) {
+        if (userName == "" || password == "") {
+            System.out.println("You must enter a username and password to create a user");
             return false;
         }
-    }
-    private static void createUser() {
-        System.out.println("Enter the following details to create a new user:");
 
-        System.out.print("Username: ");
-        String user_name = scanner.nextLine();
-
-        System.out.print("Password: ");
-        String password = scanner.nextLine();
-
-        // Add the user to the database
-        LocalDate currentDate = LocalDate.now();
-        boolean userAdded = addUserToDatabase(user_name, password, currentDate);
-
-        if (userAdded) {
-            System.out.println("User created successfully.");
-        } else {
-            System.out.println("Failed to create user.");
-        }
-    }
-    private static boolean addUserToDatabase(String user_name, String password, LocalDate date) {
-        try {
-            Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        try (Connection connection = DriverManager.getConnection(DATABASE_URL, USERNAME, PASSWORD)) {
+            PreparedStatement userStatement = connection.prepareStatement("SELECT * FROM users WHERE user_name = ?");
+            userStatement.setString(1, userName);
+            ResultSet result = userStatement.executeQuery();
+            if (result != null) {
+                System.out.println("that username already exists");
+                return false;
+            }
             PreparedStatement statement = connection.prepareStatement("INSERT INTO users (user_name, date_created, password) VALUES (?, ?, ?)");
-            statement.setString(1, user_name);
-            statement.setObject(2, date);
+            statement.setString(1, userName);
+            statement.setDate(2, java.sql.Date.valueOf(LocalDate.now()));
             statement.setString(3, password);
-
-            int rowsAffected = statement.executeUpdate();
-
-            statement.close();
-            connection.close();
-
-            return rowsAffected > 0;
+            statement.executeUpdate();
+            return true; // Account creation successful
         } catch (SQLException e) {
             e.printStackTrace();
-            return false;
+            return false; // Failed to create account
         }
     }
 
 
 
-
-    private static boolean authenticateUser(String user_name, String password) {
-        try {
-            Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-            PreparedStatement statement = connection.prepareStatement("SELECT COUNT(*) AS count FROM users WHERE user_name = ? AND password = ?");
-            statement.setString(1, user_name);
+    private static boolean login(String userName, String password) throws SQLException {
+        try (Connection connection = DriverManager.getConnection(DATABASE_URL, USERNAME, PASSWORD);
+             PreparedStatement statement = connection.prepareStatement("SELECT * FROM users WHERE user_name = ? AND password = ?")) {
+            statement.setString(1, userName);
             statement.setString(2, password);
 
-            ResultSet resultSet = statement.executeQuery();
-            if (resultSet.next()) {
-                int count = resultSet.getInt("count");
-                return count > 0;
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    loggedInUser = userName; // Set the logged-in user
+                    return true;
+                }
             }
-
-            resultSet.close();
-            statement.close();
-            connection.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
 
         return false;
     }
 
 
-    private static void searchStockPrice() {
-        System.out.print("Enter a company name: ");
-        String companyName = scanner.nextLine();
+    private static int getCurrentUserId(String userName) throws SQLException {
+        try (Connection connection = DriverManager.getConnection(DATABASE_URL, USERNAME, PASSWORD);
+             PreparedStatement statement = connection.prepareStatement("SELECT user_id FROM users WHERE user_name = ?")) {
+            statement.setString(1, userName);
 
-        String stockSymbol = getStockSymbolFromDatabase(companyName);
-        if (stockSymbol != null) {
-            String stockData = getStockData(stockSymbol);
-            processStockData(stockData);
-        } else {
-            System.out.println("Stock symbol not found for the company: " + companyName);
-        }
-    }
-
-
-    private static void viewWatchlist() {
-        System.out.println("User's Watchlist");
-        System.out.println("================");
-
-        try {
-            Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-            PreparedStatement statement = connection.prepareStatement("SELECT stock_symbol FROM watchlist WHERE user_id = ?");
-            statement.setInt(1, 1); // Assuming the user ID is 1 for now
-
-            ResultSet resultSet = statement.executeQuery();
-            while (resultSet.next()) {
-                String stockSymbol = resultSet.getString("stock_symbol");
-                System.out.println(stockSymbol);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return resultSet.getInt("user_id");
+                } else {
+                    throw new IllegalStateException("Current user not found in the database.");
+                }
             }
-
-            resultSet.close();
-            statement.close();
-            connection.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
     }
 
 
     private static void editWatchlist() {
-        System.out.print("Enter stock symbol to add/remove from watchlist: ");
-        String stockSymbol = scanner.nextLine();
+        Scanner scanner = new Scanner(System.in);
+        boolean editingWatchlist = true;
 
-        // Check if the stock symbol is already in the user's watchlist
-        boolean isInWatchlist = checkIfStockInWatchlist(stockSymbol);
+        while (editingWatchlist) {
+            try {
+            System.out.println("1. Add to watchlist");
+            System.out.println("2. Remove from watchlist");
+            System.out.println("3. View watchlist");
+            System.out.println("4. Fetch stock data");
+            System.out.println("5. Quit");
+            System.out.print("Enter option: ");
+                String option = "";
+                if (scanner.hasNextLine()) {
+                    option = scanner.nextLine();
+                } else {
+                    break;
+                }
+            switch (option) {
+                case "1":
+                    System.out.println("Enter stock name to add:");
+                    String stockName = scanner.nextLine();
 
-        if (isInWatchlist) {
-            removeFromWatchlist(stockSymbol);
-            System.out.println("Stock removed from watchlist: " + stockSymbol);
-        } else {
-            addToWatchlist(stockSymbol);
-            System.out.println("Stock added to watchlist: " + stockSymbol);
+                    // Use the findStockSymbol method to retrieve the stock symbol
+                    String stockSymbol = stockLookup.findStockSymbol(stockName);
+                    addToWatchlist(stockSymbol);
+                    break;
+                case "2":
+                    System.out.println("Enter stock name to remove:");
+                    stockName = scanner.nextLine();
+
+                    // Use the findStockSymbol method to retrieve the stock symbol
+                    stockSymbol = stockLookup.findStockSymbol(stockName);
+                    try {
+                        removeFromWatchlist(stockSymbol);
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                    break;
+                case "3":
+                    try {
+                        viewWatchlist();
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                    break;
+                case "4":
+                    System.out.print("Enter stock symbol to fetch price history: ");
+                    String symbolToFetch = scanner.next();
+                    scanner.nextLine();
+                    try {
+                        fetchStockData(symbolToFetch);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    break;
+                case "5":
+                    System.out.println("Returning to previous options...");
+                    editingWatchlist = false;
+                    break;
+                default:
+                    System.out.println("Invalid option.");
+                    break;
+            }
+            } catch (NoSuchElementException e) {
+                System.out.println("No input found. Please try again.");
+                if (scanner.hasNextLine()) {
+                    scanner.nextLine(); // Consume the newline character
+                } else {
+                    break;
+                }
+            }
         }
+
+        scanner.close();
     }
 
-    public static void removeFromWatchlist(String stockSymbol) {
+    private static void addToWatchlist(String stockSymbol) {
         try {
-            // Establish database connection
-            Connection connection = DriverManager.getConnection("your_database_url", "username", "password");
+            String userName = loggedInUser;
+            int userId = getCurrentUserId(userName);
 
-            // Create the SQL query
-            String query = "DELETE FROM watchlist WHERE symbol = ?";
+            // Verify the stock symbol in the listing_status table
+            String stockName;
+            double lastClose;
+            LocalDate mostRecentCloseDate;
+            double initialPrice;
 
-            // Create a prepared statement
-            PreparedStatement statement = connection.prepareStatement(query);
+            try (Connection connection = DriverManager.getConnection(DATABASE_URL, USERNAME, PASSWORD);
+                 PreparedStatement statement = connection.prepareStatement("SELECT name FROM listing_status WHERE symbol = ?")) {
+                statement.setString(1, stockSymbol);
 
-            // Set the parameter values
-            statement.setString(1, stockSymbol);
-
-            // Execute the query
-            int rowsAffected = statement.executeUpdate();
-
-            if (rowsAffected > 0) {
-                System.out.println("Stock removed from watchlist successfully.");
-            } else {
-                System.out.println("Stock symbol not found in the watchlist.");
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    if (resultSet.next()) {
+                        stockName = resultSet.getString("name");
+                    } else {
+                        System.out.println("Invalid stock symbol.");
+                        return; // Exit the method without adding the stock to the watchlist
+                    }
+                }
             }
 
-            // Close resources
-            statement.close();
-            connection.close();
-        } catch (SQLException e) {
-            e.printStackTrace(); // Handle the exception appropriately (e.g., log an error message)
-        }
-    }
-
-
-    private static boolean checkIfStockInWatchlist(String stockSymbol) {
-        try {
-            Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-            PreparedStatement statement = connection.prepareStatement("SELECT COUNT(*) AS count FROM watchlist WHERE user_id = ? AND stock_symbol = ?");
-            statement.setInt(1, 1); // Assuming the user ID is 1 for now
-            statement.setString(2, stockSymbol);
-
-            ResultSet resultSet = statement.executeQuery();
-            if (resultSet.next()) {
-                int count = resultSet.getInt("count");
-                return count > 0;
-            }
-
-            resultSet.close();
-            statement.close();
-            connection.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        return false;
-    }
-
-    public static void addToWatchlist(String stockSymbol) {
-        try {
-            // Get the user_id for the current user (you need to implement this)
-            int userId = getCurrentUserId();
-
-            // Get the last_close and most_recent_close_date using the API call
-            double lastClose = getLastClosePrice(stockSymbol);
-            LocalDate mostRecentCloseDate = getLastCloseDate(stockSymbol);
-
-            // Set the date_added_to_watchlist as the current date
+            lastClose = getLastClosePrice(stockSymbol);
+            mostRecentCloseDate = getLastCloseDate(stockSymbol);
             LocalDate dateAddedToWatchlist = LocalDate.now();
-
-            // Get the initial_price using an API call (similar to getLastClosePrice method)
-            double initialPrice = getInitialPrice(stockSymbol);
-
-            // Calculate the gain_loss percentage
+            initialPrice = getInitialPrice(stockSymbol);
             double gainLoss = ((lastClose - initialPrice) / initialPrice) * 100.0;
 
-            // Insert the data into the watchlist table
-            String query = "INSERT INTO watchlist (user_id, stock_symbol, last_close, most_recent_close_date, " +
-                    "date_added_to_watchlist, initial_price, gain_loss) VALUES (?, ?, ?, ?, ?, ?, ?)";
+            String query = "INSERT INTO watchlist (user_id, stock_symbol, stock_name, last_close, most_recent_close_date, " +
+                    "date_added_to_watchlist, initial_price, gain_loss) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
-            try (Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+            try (Connection connection = DriverManager.getConnection(DATABASE_URL, USERNAME, PASSWORD);
                  PreparedStatement statement = connection.prepareStatement(query)) {
                 statement.setInt(1, userId);
                 statement.setString(2, stockSymbol);
-                statement.setDouble(3, lastClose);
-                statement.setDate(4, java.sql.Date.valueOf(mostRecentCloseDate));
-                statement.setDate(5, java.sql.Date.valueOf(dateAddedToWatchlist));
-                statement.setDouble(6, initialPrice);
-                statement.setDouble(7, gainLoss);
+                statement.setString(3, stockName);
+                statement.setDouble(4, lastClose);
+                statement.setDate(5, java.sql.Date.valueOf(mostRecentCloseDate));
+                statement.setDate(6, java.sql.Date.valueOf(dateAddedToWatchlist));
+                statement.setDouble(7, initialPrice);
+                statement.setDouble(8, gainLoss);
 
                 statement.executeUpdate();
                 System.out.println("Stock added to watchlist successfully.");
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } catch (IllegalStateException e) {
+            System.out.println(e.getMessage());
+            return; // Exit the method without adding the stock to the watchlist
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
 
 
-    private static String getStockSymbolFromDatabase(String companyName) {
-        String stockSymbol = null;
+    private static void removeFromWatchlist(String symbol) throws SQLException {
+        String userName = loggedInUser;
+        int userId = getCurrentUserId(userName);
+        try (Connection connection = DriverManager.getConnection(DATABASE_URL, USERNAME, PASSWORD);
+             PreparedStatement statement = connection.prepareStatement("DELETE FROM watchlist WHERE user_id = ? AND stock_symbol = ?")) {
+            statement.setInt(1, userId);
+            statement.setString(2, symbol);
 
-        try {
-            Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-            PreparedStatement statement = connection.prepareStatement("SELECT symbol FROM listing_status WHERE name = ?");
-            statement.setString(1, companyName);
-
-            ResultSet resultSet = statement.executeQuery();
-            if (resultSet.next()) {
-                stockSymbol = resultSet.getString("symbol");
+            int rowsAffected = statement.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Symbol removed from watchlist.");
+            } else {
+                System.out.println("Failed to remove symbol from watchlist.");
             }
-
-            resultSet.close();
-            statement.close();
-            connection.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
-
-        return stockSymbol;
     }
 
-    private static String getStockData(String stockSymbol) {
-        String stockData = null;
 
-        try {
-            String apiUrl = "https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol=" +
-                    stockSymbol + "&apikey=" + API_KEY;
+    private static void viewWatchlist() throws SQLException {
+        String userName = loggedInUser;
+        int userId = getCurrentUserId(userName);
+        System.out.println("Hello " + userName + ", here are all of your stock positions.");
+        try (Connection connection = DriverManager.getConnection(DATABASE_URL, USERNAME, PASSWORD);
+             PreparedStatement statement = connection.prepareStatement("SELECT watchlist.stock_symbol, watchlist.date_added_to_watchlist, watchlist.gain_loss FROM users INNER JOIN watchlist ON users.user_id = watchlist.user_id WHERE users.user_id = ?")) {
+            statement.setInt(1, userId);
 
-            URL url = new URL(apiUrl);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("GET");
+            try (ResultSet resultSet = statement.executeQuery()) {
+                List<String> watchlistData = new ArrayList<>();
 
-            int responseCode = connection.getResponseCode();
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                StringBuilder response = new StringBuilder();
-                String line;
+                while (resultSet.next()) {
+                    String symbol = resultSet.getString("stock_symbol");
+                    String dateAdded = resultSet.getString("date_added_to_watchlist");
+                    String gainLoss = resultSet.getString("gain_loss");
 
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
+                    String data = String.format("Stock: %s, Date Added: %s, Gain/Loss: %s", symbol, dateAdded, gainLoss);
+                    watchlistData.add(data);
                 }
 
-                reader.close();
-                stockData = response.toString();
-            } else {
-                System.out.println("Error: " + responseCode);
+                if (watchlistData.isEmpty()) {
+                    System.out.println("Watchlist is empty.");
+                } else {
+                    System.out.println("Watchlist data:");
+                    for (String data : watchlistData) {
+                        System.out.println(data);
+                    }
+                }
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
-
-        return stockData;
     }
 
 
-    private static void processStockData(String stockData) {
-        JsonParser parser = new JsonParser();
-        JsonObject jsonResponse = parser.parse(stockData).getAsJsonObject();
-        JsonObject timeSeries = jsonResponse.getAsJsonObject("Weekly Time Series");
+
+
+    private static void fetchStockData(String symbol) throws IOException {
+        String apiUrl = "https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol=" + symbol + "&apikey=" + API_KEY;
+        URL url = new URL(apiUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        int responseCode = connection.getResponseCode();
+
+        if (responseCode != 200) {
+            System.out.println("Error: " + responseCode);
+            return;
+        }
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        StringBuilder response = new StringBuilder();
+
+        String line;
+        while ((line = reader.readLine()) != null) {
+            response.append(line);
+        }
+
+        reader.close();
+        Gson gson = new Gson();
+        JsonObject json = gson.fromJson(response.toString(), JsonObject.class);
+        JsonObject timeSeries = json.getAsJsonObject("Weekly Time Series");
 
         if (timeSeries != null) {
-            List<StockData> closingPrices = new ArrayList<>();
-            LocalDate currentDate = LocalDate.now();
-            DecimalFormat decimalFormat = new DecimalFormat("#.##");
-
-            System.out.println("Stock Trend Analysis");
-            System.out.println("====================");
-
-            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
-            LocalDate currentWeekStart = null;
-            LocalDate currentWeekEnd = null;
-            int weekCount = 0;
-
-            double averageWeek = 0.0; // Initialize averageWeek with a default value
-            double closeWeek = 0.0; // Initialize closeWeek with a default value
-
-            for (String key : timeSeries.keySet()) {
-                LocalDate date = LocalDate.parse(key, dateFormatter);
-                if (currentWeekStart == null) {
-                    currentWeekStart = date;
-                }
-                currentWeekEnd = date;
-
-                if (weekCount == 0 || date.isAfter(currentDate.minusDays(7))) {
-                    JsonObject data = timeSeries.getAsJsonObject(key);
-                    String high = data.get("2. high").getAsString();
-                    String low = data.get("3. low").getAsString();
-                    String close = data.get("4. close").getAsString();
-                    double highValue = Double.parseDouble(high);
-                    double lowValue = Double.parseDouble(low);
-                    double closeValue = Double.parseDouble(close);
-                    double average = (highValue + lowValue) / 2;
-
-                    StockData stockDataEntry = new StockData(date, average, closeValue);
-                    closingPrices.add(stockDataEntry);
-
-                    averageWeek = average; // Update averageWeek with the average value for the current week
-                    closeWeek = closeValue; // Update closeWeek with the closing price for the current week
-
-                    System.out.println("Date: " + date);
-                    System.out.println("Average: " + decimalFormat.format(averageWeek));
-                    System.out.println("Close: " + closeWeek);
-                    System.out.println();
-                }
-
-                weekCount++;
-            }
-
-            boolean isUpThisWeek = isStockUp(closingPrices);
-            boolean isUpLastWeek = closingPrices.size() >= 2 && isStockUp(getSubList(closingPrices, 2));
-            boolean isUpLast3Months = closingPrices.size() >= 14 && isStockUp(getSubList(closingPrices, 14));
-            boolean isUpLast6Months = closingPrices.size() >= 27 && isStockUp(getSubList(closingPrices, 27));
-            boolean isUpLastYear = closingPrices.size() >= 54 && isStockUp(getSubList(closingPrices, 54));
-
-            LocalDate lastWeekEndDate = currentWeekStart.minusDays(1); // Get the end date of the previous week
-
-            LocalDate last3MonthsStartDate = currentDate.minusMonths(3).plusDays(1); // Get the start date of the last 3 months
-            LocalDate last3MonthsEndDate = currentDate; // Get the end date of the last 3 months
-
-            LocalDate last6MonthsStartDate = currentDate.minusMonths(6).plusDays(1); // Get the start date of the last 6 months
-            LocalDate last6MonthsEndDate = currentDate; // Get the end date of the last 6 months
-
-            LocalDate lastYearStartDate = currentDate.minusYears(1).plusDays(1); // Get the start date of the last year
-            LocalDate lastYearEndDate = currentDate; // Get the end date of the last year
-
-            System.out.println("Stock Performance Analysis");
-            System.out.println("==========================");
-            System.out.println("This Week: " + (isUpThisWeek ? "Up" : "Down"));
-            System.out.println("Last Week (" + currentWeekStart + " to " + lastWeekEndDate + "): " + (isUpLastWeek ? "Up" : "Down"));
-            System.out.println("Last 3 Months (" + last3MonthsStartDate + " to " + last3MonthsEndDate + "): " + (isUpLast3Months ? "Up" : "Down"));
-            System.out.println("Last 6 Months (" + last6MonthsStartDate + " to " + last6MonthsEndDate + "): " + (isUpLast6Months ? "Up" : "Down"));
-            System.out.println("Last Year (" + lastYearStartDate + " to " + lastYearEndDate + "): " + (isUpLastYear ? "Up" : "Down"));
+            List<StockData> stockDataList = extractStockDataList(timeSeries);
+            processStockData(stockDataList);
         } else {
-            System.out.println("No stock data available for the specified symbol.");
+            System.out.println("No time series data found.");
         }
     }
 
+    private static List<StockData> extractStockDataList(JsonObject timeSeries) {
+        List<StockData> stockDataList = new ArrayList<>();
 
+        for (Map.Entry<String, JsonElement> entry : timeSeries.entrySet()) {
+            String dateString = entry.getKey();
+            JsonObject data = entry.getValue().getAsJsonObject();
+            double open = data.get("1. open").getAsDouble();
+            double high = data.get("2. high").getAsDouble();
+            double low = data.get("3. low").getAsDouble();
+            double close = data.get("4. close").getAsDouble();
+            long volume = data.get("5. volume").getAsLong();
 
-    private static int getIndexForDate(List<StockData> stockDataList, LocalDate date) {
-        for (int i = stockDataList.size() - 1; i >= 0; i--) {
-            if (stockDataList.get(i).getDate().isEqual(date)) {
-                return i;
-            }
+            LocalDate date = LocalDate.parse(dateString);
+            StockData stockData = new StockData(date, open, high, low, close, volume);
+            stockDataList.add(stockData);
         }
-        return -1; // Return -1 if date is not found
+
+        return stockDataList;
     }
 
-    private static boolean isStockUp(List<StockData> stockDataList) {
-        int size = stockDataList.size();
-        if (size <= 1) {
-            return false;
-        }
-
-        double sum = 0.0;
-        for (int i = 1; i < size; i++) {
-            double priceDiff = stockDataList.get(i).getClose() - stockDataList.get(i - 1).getClose();
-            sum += priceDiff;
-        }
-
-        double averageChange = sum / (size - 1);
-        return averageChange > 0;
-    }
-
-
-
-
-    private static List<StockData> getSubList(List<StockData> list, int size) {
-        int listSize = list.size();
-        if (size >= listSize) {
-            return list;
-        } else {
-            return list.subList(listSize - size, listSize);
+    private static void processStockData(List<StockData> stockDataList) {
+        // Process the stock data as needed
+        for (StockData stockData : stockDataList) {
+            System.out.println(stockData);
         }
     }
 
+    private static double getLastClosePrice(String symbol) throws IOException {
+        String apiUrl = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=" + symbol + "&apikey=" + API_KEY;
+        URL url = new URL(apiUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        int responseCode = connection.getResponseCode();
 
-    private static double calculatePercentageChange(double initialValue, double finalValue) {
-        return (finalValue - initialValue) / initialValue * 100;
+        if (responseCode != 200) {
+            throw new RuntimeException("Error: " + responseCode);
+        }
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        StringBuilder response = new StringBuilder();
+
+        String line;
+        while ((line = reader.readLine()) != null) {
+            response.append(line);
+        }
+
+        reader.close();
+        Gson gson = new Gson();
+        JsonObject json = gson.fromJson(response.toString(), JsonObject.class);
+        JsonObject globalQuote = json.getAsJsonObject("Global Quote");
+        double lastClose = globalQuote.get("05. price").getAsDouble();
+
+        return lastClose;
+    }
+
+    private static LocalDate getLastCloseDate(String symbol) throws IOException {
+        String apiUrl = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=" + symbol + "&apikey=" + API_KEY;
+        URL url = new URL(apiUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        int responseCode = connection.getResponseCode();
+
+        if (responseCode != 200) {
+            throw new RuntimeException("Error: " + responseCode);
+        }
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        StringBuilder response = new StringBuilder();
+
+        String line;
+        while ((line = reader.readLine()) != null) {
+            response.append(line);
+        }
+
+        reader.close();
+        Gson gson = new Gson();
+        JsonObject json = gson.fromJson(response.toString(), JsonObject.class);
+        JsonObject globalQuote = json.getAsJsonObject("Global Quote");
+        String lastCloseDateStr = globalQuote.get("07. latest trading day").getAsString();
+        LocalDate lastCloseDate = LocalDate.parse(lastCloseDateStr);
+
+        return lastCloseDate;
+    }
+
+    public static double getInitialPrice(String symbol) throws IOException {
+        // Get the last close date
+        LocalDate lastCloseDate = getLastCloseDate(symbol);
+
+        // Construct the URL to retrieve stock data for the last close date
+        String apiUrl = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=" + symbol +
+                "&apikey=" + API_KEY;
+        URL url = new URL(apiUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        int responseCode = connection.getResponseCode();
+
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            throw new IOException("Failed to retrieve stock data. Response Code: " + responseCode);
+        }
+
+        // Read the response data
+        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        StringBuilder response = new StringBuilder();
+
+        String line;
+        while ((line = reader.readLine()) != null) {
+            response.append(line);
+        }
+
+        reader.close();
+
+        // Parse the JSON response
+        Gson gson = new Gson();
+        JsonObject json = gson.fromJson(response.toString(), JsonObject.class);
+        JsonObject timeSeries = json.getAsJsonObject("Time Series (Daily)");
+        JsonObject dailyData = timeSeries.getAsJsonObject(lastCloseDate.toString());
+        double initialPrice = Double.parseDouble(dailyData.get("4. close").getAsString());
+
+        return initialPrice;
+    }
+
+
+    public static void apiCall(HttpURLConnection conn) {
+    }
+}
+
+class StockData {
+    private LocalDate date;
+    private double open;
+    private double high;
+    private double low;
+    private double close;
+    private long volume;
+
+    public StockData(LocalDate date, double open, double high, double low, double close, long volume) {
+        this.date = date;
+        this.open = open;
+        this.high = high;
+        this.low = low;
+        this.close = close;
+        this.volume = volume;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public double getOpen() {
+        return open;
+    }
+
+    public double getHigh() {
+        return high;
+    }
+
+    public double getLow() {
+        return low;
+    }
+
+    public double getClose() {
+        return close;
+    }
+
+    public long getVolume() {
+        return volume;
+    }
+
+    @Override
+    public String toString() {
+        return "Date: " + date +
+                ", Open: " + open +
+                ", High: " + high +
+                ", Low: " + low +
+                ", Close: " + close +
+                ", Volume: " + volume;
     }
 }
