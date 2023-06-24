@@ -101,10 +101,10 @@ public class Main {
         }
 
         try (Connection connection = DriverManager.getConnection(DATABASE_URL, USERNAME, PASSWORD)) {
-            PreparedStatement userStatement = connection.prepareStatement("SELECT * FROM users WHERE user_name = ?");
+            PreparedStatement userStatement = connection.prepareStatement("SELECT user_name FROM users WHERE user_name = ?");
             userStatement.setString(1, userName);
             ResultSet result = userStatement.executeQuery();
-            if (result != null) {
+            if (result.next()) {
                 System.out.println("that username already exists");
                 return false;
             }
@@ -184,13 +184,13 @@ public class Main {
                     addToWatchlist(stockSymbol);
                     break;
                 case "2":
-                    System.out.println("Enter stock name to remove:");
-                    stockName = scanner.nextLine();
+                    System.out.println("Enter the ID for the stock you wish to remove from your watchlist:");
+                    int watchlist_id = Integer.parseInt(scanner.nextLine());
 
                     // Use the findStockSymbol method to retrieve the stock symbol
-                    stockSymbol = stockLookup.findStockSymbol(stockName);
+                    //stockSymbol = stockLookup.findStockSymbol(stockName);
                     try {
-                        removeFromWatchlist(stockSymbol);
+                        removeFromWatchlist(watchlist_id);
                     } catch (SQLException e) {
                         throw new RuntimeException(e);
                     }
@@ -293,13 +293,13 @@ public class Main {
 
 
 
-    private static void removeFromWatchlist(String symbol) throws SQLException {
+    private static void removeFromWatchlist(int watchlist_id) throws SQLException {
         String userName = loggedInUser;
         int userId = getCurrentUserId(userName);
         try (Connection connection = DriverManager.getConnection(DATABASE_URL, USERNAME, PASSWORD);
-             PreparedStatement statement = connection.prepareStatement("DELETE FROM watchlist WHERE user_id = ? AND stock_symbol = ?")) {
+             PreparedStatement statement = connection.prepareStatement("DELETE FROM watchlist WHERE user_id = ? AND watchlist_id = ?")) {
             statement.setInt(1, userId);
-            statement.setString(2, symbol);
+            statement.setInt(2, watchlist_id);
 
             int rowsAffected = statement.executeUpdate();
             if (rowsAffected > 0) {
@@ -316,18 +316,19 @@ public class Main {
         int userId = getCurrentUserId(userName);
         System.out.println("Hello " + userName + ", here are all of your stock positions.");
         try (Connection connection = DriverManager.getConnection(DATABASE_URL, USERNAME, PASSWORD);
-             PreparedStatement statement = connection.prepareStatement("SELECT watchlist.stock_symbol, watchlist.date_added_to_watchlist, watchlist.gain_loss FROM users INNER JOIN watchlist ON users.user_id = watchlist.user_id WHERE users.user_id = ?")) {
+             PreparedStatement statement = connection.prepareStatement("SELECT watchlist.watchlist_id, watchlist.stock_symbol, watchlist.date_added_to_watchlist, watchlist.gain_loss FROM users INNER JOIN watchlist ON users.user_id = watchlist.user_id WHERE users.user_id = ?")) {
             statement.setInt(1, userId);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 List<String> watchlistData = new ArrayList<>();
 
                 while (resultSet.next()) {
+                    int watchlist_id = resultSet.getInt("watchlist_id");
                     String symbol = resultSet.getString("stock_symbol");
                     String dateAdded = resultSet.getString("date_added_to_watchlist");
                     String gainLoss = resultSet.getString("gain_loss");
 
-                    String data = String.format("Stock: %s, Date Added: %s, Gain/Loss: %s", symbol, dateAdded, gainLoss);
+                    String data = String.format("ID: %s, Stock: %s, Date Added: %s, Gain/Loss: %s", watchlist_id, symbol, dateAdded, gainLoss);
                     watchlistData.add(data);
                 }
 
